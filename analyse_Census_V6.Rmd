@@ -1,0 +1,2227 @@
+---
+title: "Challenge Data Census US"
+subtitle: "S2 2019"
+author: "L.RANT"
+date: "`r format(Sys.time(),'%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(rmdformats)
+```
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+# Introduction
+  
+Le jeu de données contient des données issu de questionnaires de recensement américain des années 1994 et 1995. Notre variable d’intérêt (outcome) est binaire, c'est le résultat qu'on cherchera pour la prédiction. Il n’y a aucun manquant sur notre jeu de données « data_train » pour cette variable. Elle est considérée comme une valeur, c’est en fait une variable qualitative à 2 modalités.Les autres variables se répartissent en 28 variables qualitatives et 13 variables quantitatives. Notre objectif final est de construire un modèle permettant de prédire si le revenu d'un citoyen américain aléatoire est inférieur ou supérieur à 50000$ en fonction de caractéristiques données, telles que l'âge, le niveau de scolarité, la profession, le sexe, la race, etc.  
+Dans la première partie du projet, nous nettoyons et explorons le jeu de données en  effectuant une analyse préliminaire de l'impact de chaque variable prédictive(appelée aussi variable variable explicative ou covariable indépendante) sur le "revenu" de la variable réponse (appelée aussi variable dépendante).
+
+Dans la deuxième partie, nous utilisons différentes techniques de pré-traitement pour regrouper les variables et les modalités. Ensuite nous faisons une reduction du jeu de données afin de pouvoir faire correctement les predictions.
+
+Dans la troisième partie du projet, nous construisons des modèles prédictifs utilisant différents algorithmes. Nous appliquons les reseaux de neurones, k plus proche voisins, les forêts aléatoires, l'arbre de décision etc ... Nous testerons la précision des modèles construits à la fois sur des données d'apprentissage et des données de test-validation. 
+
+
+# 1.Chargement des données et modification de type ou de libellé
+
+Cette première partie comporte des analyses statistiques et elle nous aide à comprendre les données. Nous allons explorer ce jeu de données.
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE}
+start_time1 = Sys.time()
+library(knitr)
+options(tinytex.verbose = TRUE)
+#setwd("C:/Users/jerom/Documents/jerome/00_pro_perso/10_training/20_cnam/STA211/10_challenge_data")#jt
+#load("C:/Users/jerom/Documents/jerome/00_pro_perso/10_training/20_cnam/STA211/10_challenge_data/data/data_train.rda")#jt
+#load("C:/Users/jerom/Documents/jerome/00_pro_perso/10_training/20_cnam/STA211/10_challenge_data/data/data_test.rda")#jt
+load("C:/Users/lnzb7292/Downloads/STA211/data_train.rda")
+load("C:/Users/lnzb7292/Downloads/STA211/data_test.rda")
+setwd("C:/Users/lnzb7292/Downloads/STA211")
+#setwd("C:/Users/jerom/Documents/jerome/00_pro_perso/10_training/20_cnam/STA211/10_challenge_data/lova")
+
+```
+Nous effectuons le chargement des données et des packages nécessaires à nos travaux.
+```{r, message=FALSE, warning=FALSE, echo=FALSE, cache=FALSE}
+#Required Packages
+library(FactoMineR)
+library(factoextra)
+library(MASS) #Logistic Regression and LDA
+library(tree) #Classification Tree
+library(randomForest) #Random Forest
+library(ggplot2) #Plotting
+library(class) #KNN
+library(corrplot) #Correlation Plot
+library(rockchalk) #Combining Levels
+library(gbm) #Boosting
+library(dplyr)#mutate
+library(rpart)#classifer Tree
+library(kableExtra)#tableau
+library(caret)#knn3
+library(class)#knn
+library(Amelia)#missing value
+library(questionr)#tableau pourcentage
+library(e1071)#naives bayes
+library(rattle)  # Fancy tree plot
+library(NeuralNetTools) #Neurone schéma
+library(neuralnet)
+library(nnet)# neuronalnetwork nnet
+library(gbm) #gbm.perf 
+library(RSNNS)
+library(rmarkdown)
+library(car)
+library("gplots")
+library(lattice)#graphe
+library(gridExtra)#graphe
+#Chargement du package BioStatR
+#install.packages("BioStatR")
+library(BioStatR)
+
+```
+Voici la liste exhaustive des variables explicatives :
+
+
+```{r, echo = FALSE, fig.align = 'center', fig.height = 3.5, fig.width = 5.5}
+names(sapply(data_train,class))
+```
+Pour éviter des risques avec la présence d'espaces dans les noms de variables, nous préférons renommer nos variables avec des noms sans espace. Dans notre espace de travail, nous appellerons désormais "Census" le jeu de données correspondant à "data_train" pour conserver l'intégrité de data_train.
+
+
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+colnames(data_train)<- c("age",	"class_of_worker",	"detailed_industry_recode",	"detailed_occupation_recode",	"education",	"wage_per_hour",	"enroll_in_edu_inst_last_wk",	"marital_stat",	"major_industry_code",	"major_occupation_code",	"race",	"hispanic_origin",	"sex",	"member_of_a_labor_union",	"reason_for_unemployment",	"full_or_part_time_employment_stat",	"capital_gains",	"capital_losses",	"from_stocks",	"tax_filer_stat",	"region_of_previous_residence",	"state_of_previous_residence",	"detailed_household_and_family_stat",	"detailed_household_summary_in_household",	"migration_code_changeinmsa",	"migration_code_change_in_reg",	"migration_code_move_with_in_reg",	"live_int_his_house_1_year_ago",	"migration_prevres_in_sunbelt",	"num_persons_worked_for_employer",	"family_members_under_18",	"countryofbirthfather",	"country_of_birthmother",	"country_of_birthself",	"citizenship",	"business_or_selfemployed",	"fill_inc_questionnaire_for_veterans_admi",	"veterans_benefits",	"weeks_worked_in_year",	"year",	"outcome")
+
+Census<-data_train
+
+```
+
+## 1.1 Aperçu général
+
+La dimension de notre tableau est :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+#nombre d'individus et variables
+dim(Census)
+```
+soit, 41 colonnes (variables) et 199526 lignes.
+
+Les types de variables sont :
+
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+table(sapply(Census,class))
+```
+Comme nous pouvons le voir, nous avons 29 colonnes qui sont qualitatives et 12 qui sont quantitatives. Afin de voir quels sont les modalités de chaque variable factorielle, nous écrivons la fonction **levels_factors()**, qui prend comme argument une trame de données, et que nous appliquons à notre jeu de données Census (Voir Annexes)
+
+
+```{r, echo = FALSE, fig.align = 'center', fig.height = 3.5, fig.width = 5.5}
+
+levels_factors <- function(mydata) {
+    col_names <- names(mydata)
+    for (i in 1:length(col_names)) {
+        if (is.factor(mydata[, col_names[i]])) {
+          
+            message(noquote(paste(cat("Nous avons les Covariables de",  "*",col_names[i],"*",  "avec comme factor levels:\n"), sep = "\n")))
+            print(levels(mydata[, col_names[i]]))
+            
+         message(noquote(paste(cat("Nous avons un total de ",length(levels(mydata[, col_names[i]])),  " covariables pour la variable ","*",col_names[i],"*\n",sep = ""))))
+         message(sep="\n")
+         
+    
+        }
+     
+    }
+}
+
+#levels_factors(Census)
+
+```
+
+Le nombre de modalités pouvant être très important et rendant difficile l'analyse, nous serons certainement amenés à regrouper des modalités de certaines variables, ou des variables entre elles.
+   
+
+## 1.2 Remarques sur les types de variables
+
+Nous observons que certaines variables reconnues comme quantitatives sont en fait des variables qualitatives (ce sont des codes pour désigner l'appartenance à une classe) : 
+
+- detailed industry recode
+
+- detailed occupation recode 
+
+- business or self employed
+
+- veterans benefits 
+
+La variable "year" constitue un cas un peu particulier, puisque c'est une variable temporelle, ici reconnue comme une variable quantitative alors qu'on devrait elle aussi la considérer comme une variable qualitative avec deux modalités.
+Nous allons  changer les types de ces variables.
+
+Pour les autres variables quantitatives, le choix de discrétiser ou non est plus ouvert, nous expliquerons plus loin nos choix.
+
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+## Transforming the train set
+Census$detailed_industry_recode <- as.factor(Census$detailed_industry_recode)
+Census$detailed_occupation_recode <- as.factor(Census$detailed_occupation_recode)
+Census$business_or_selfemployed <- as.factor(Census$business_or_selfemployed)
+Census$veterans_benefits <- as.factor(Census$veterans_benefits)
+Census$year <- as.factor(Census$year)
+
+```
+
+après ces transformations, nous avons désormais :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+
+#nature des variables
+table(sapply(Census,class))
+
+```
+soit 34 colonnes qui sont catégorielles (qualitatives) et 7 qui sont entières (quantitatives).
+
+```{r, echo = FALSE,eval=FALSE, fig.align = 'center', fig.height = 3.5, fig.width = 5.5}
+# dont voici la liste mise à jour :
+
+number_columns = ncol(Census)
+for (i in 1:number_columns) {
+cat(paste0("[ ",i," ]"," - Type of the column ", colnames(Census)[i],": ", class(Census[,i]),"\n"))
+}
+```
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE, eval=TRUE}
+#variables qualitatives
+var.factor<-which(sapply(Census,class)=="factor")
+#names(var.factor)
+```
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE,eval=TRUE}
+#variables quantitatives
+var.numeric<-which(sapply(Census,class)=="numeric"|sapply(Census,class)=="integer")
+#names(var.numeric)
+```
+## 1.2 Distribution de la variable "outcome" et distribution des manquants
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+number_columns = ncol(Census)
+nligne = nrow(Census)
+
+
+number_high_salary = sum(ifelse(Census$outcome == "+50000", TRUE, FALSE))
+number_low_salary = sum(ifelse(Census$outcome != "+50000", TRUE, FALSE))
+high_salary<-round((number_high_salary/nligne)*100,1)
+low_salary<-round((number_low_salary/nligne)*100,1)
+```
+
+
+```{r,echo=FALSE,results='hide', warning = FALSE, cache=TRUE}
+number_columns
+nligne
+number_high_salary
+number_low_salary
+
+high_salary
+low_salary
+```
+# 1.2.1 Variable "outcome"
+
+Voici la distribution des données pour la variable **outcome**
+
+
+- nombre de colonne: `r number_columns`
+       
+- nombre de ligne: `r nligne`
+       
+- proportion de high salary: `r high_salary`%
+       
+- proportion de low salary: `r low_salary`%
+
+La proportion de salaire faible (-50 000$) est très importante, nos données ne sont pas équilibrées par rapport à cette variable **outcome**. Ce constat est important et nous en tiendrons compte lorsque nous formerons nos modèles.
+
+
+# 1.2.2 Données manquantes
+
+Nous allons analyser les données manquantes, et les variables les plus concernées par ces manquants.
+Voici le nombre total de valeurs manquantes :
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE}
+#nombre de données manquantes
+cat("Nombre de données manquantes: ",sum(is.na(Census)),"\n")
+cat("[",sum(is.na(Census)),"/","(",nrow(Census),"x",41,")","]","=",(sum(is.na(Census))/(nrow(Census)*41))*100,"%")
+
+```
+Ce nombre de cellules vides dans notre jeu de données est assez faible si on le compare au nombre total de cellules.
+
+Mesurons le nombre de ligne avec au moins une données manquantes :
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE,fig.align = 'center', fig.height = 6.5, fig.width = 5.5}
+gtable<-table (complete.cases (Census))
+gtable
+
+
+cat("\n ")
+missingvalue<-gtable[1]/sum(gtable)
+cat("Nous avons",missingvalue*100,"% de lignes avec une valeur manquante")
+
+```
+
+Soit `r gtable[1]` lignes fausse avec au moins une valeur manquante et `r gtable[2]` lignes sans valeur manquante. Ce qui est très important.
+
+
+Observons la répartition de ces manquants par variables :
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 6.5}
+par(mar=c(5, 15, 4, 2) + 0.01)
+missmap(Census, main = "Données manquantes",y.cex = 0.7, x.cex = 0.6,y.labels = NULL,ylim=c(0,50),str=45,
+ y.at = NULL)
+```
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+##################"
+#nombre de valeurs uniques par variable, intéressant mais pas utile au milieu de l'analyse des manquants
+#Setting unwanted values as NA
+Census[Census == "?"] <- NA
+#Check for ‘NA’ values and look how many unique values there are for each variable.
+f<-sapply(Census, function(x) length(unique(x)))
+
+kable(f,booktabs= T,caption = "Nombre de valeurs uniques par variable")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+Voici les variables comportant des valeurs manquantes et le nombre de valeurs manquantes pour chacunes d'elles :
+
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE, eval=FALSE}
+nbmissing_par_var<-sapply(Census,function(x) sum(is.na(x)))
+res2<-sort(nbmissing_par_var,decreasing=TRUE)
+
+kable(res2[1:8],booktabs= T,caption = "Nombre de valeurs manquantes par variable")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE}
+#migration_prev_res_in_sunbelt,country_of_birth_father
+#colnames(Census)[ apply(Census, 2, anyNA) ]
+```
+
+On a donc 8 variables avec des données manquantes.
+
+- 99665 valeurs pour chaques variables "migration_prevres_in_sunbelt","migration_code_changeinmsa", "migration_code_move_with_in_reg","migration_code_move_with_in_reg". En cherchant à comprendre pourquoi on observe exactement le même nombre de manquants sur ces 4 variables, on observe que toutes les données de l'année 1995 sont manquantes pour ces variables.
+
+- 686 valeurs pour la variable  "state_of_previous_residence" soit (686/ 199526) soit 0.34% des donneées de la variable state_of_previous_residence
+
+- 6821 valeurs pour la variable countryofbirthfather 
+
+- 6170 valeurs pour la variable country_of_birthmother
+
+- 3499 valeurs pour la variable country_of_birthself 
+
+
+A ce stade, nous nous limitons à coder les NA en "inconnu". A part pour les 4 premières variables citées ci dessous, c'est une proportion de manquants relativement faible, et nous pouvons en faire une modalité. Par la suite, on verra comment gérer la modalité **Inconnu** par rapport à notre objectif de prédiction d'outcome.
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE, eval=TRUE}
+library(forcats)
+Census$country_of_birthself<-fct_explicit_na(Census$country_of_birthself, "Inconnu")
+Census$country_of_birthmother<-fct_explicit_na(Census$country_of_birthmother, "Inconnu")
+Census$countryofbirthfather<-fct_explicit_na(Census$countryofbirthfather, "Inconnu")
+
+Census$migration_code_changeinmsa<-fct_explicit_na(Census$migration_code_changeinmsa, "Inconnu")
+Census$migration_prevres_in_sunbelt  <-fct_explicit_na(Census$migration_prevres_in_sunbelt, "Inconnu")
+Census$migration_code_move_with_in_reg <-fct_explicit_na(Census$migration_code_move_with_in_reg, "Inconnu")   
+Census$state_of_previous_residence  <-fct_explicit_na(Census$state_of_previous_residence, "Inconnu")
+
+Census$migration_code_change_in_reg  <-fct_explicit_na(Census$migration_code_change_in_reg, "Inconnu")
+```
+
+```{r,echo=FALSE,eval=FALSE, warning = FALSE, cache=TRUE}
+#nombre de données manquantes
+#sum(is.na(Census))
+
+
+```
+
+
+# 2.Exploration
+
+
+## 2.1  Variables quantitatives
+### 2.1.1 Indicateurs statistiques
+```{r,echo=FALSE, warning = FALSE, cache=TRUE, eval=TRUE}
+# chargement de la librarie
+library(stargazer)
+
+# affichage de quelques indicateurs statistiques pour variables quantitatives
+stargazer(Census,summary.stat=c("n","min","p25","median","mean","p75","max","sd"),type = "text")
+```
+On peut remarquer qu’aucune des variables n’est constante. De telles variables n’auraient aucun intérêt pour l’analyse.
+Par ailleurs, les 4 variables "wage_per_hour", "capital_gains", "capital_losses" et "from_stock" sont distribuées de façon très déséquilibrée avec premier quartile = 3ème quartile = 0. Ce qui signifie un très grand nombre de valeur à 0. On peut supposer que les valeurs max à 9999, ou 99999 ne sont pas de vrais max mais des maxs autorisés par le nombre de digit disponibles.
+
+### 2.1.2 Représentations graphiques
+
+On commence par visualiser les distributions des variables via des diagrammes en barres et des histogrammes. Pour les variables ayant un grand nombre de valeurs distinctes, on les représentera via des histogrammes formant des classes.
+```{r,message=FALSE,results='hide', fig.align='center', fig.height=8.5, fig.width=6, warning=TRUE}
+par(mfrow=c(3,3))
+varbarplot<-c("num_persons_worked_for_employer","weeks_worked_in_year","age","wage_per_hour", "capital_gains","capital_losses","from_stocks")
+
+#histogrammes
+varhist<-c("num_persons_worked_for_employer","weeks_worked_in_year","age","wage_per_hour", "capital_gains","capital_losses","from_stocks")
+
+mapply(Census[,varhist],
+       FUN=function(xx,name){hist(xx,main=name,cex= 0.6)},
+       name=varhist)
+
+
+```
+Les variables "Age" et "num_persons_worked_for_employer" ont une distribution relaitvement équilibrée.
+Les variables "wage_per_hour", "capital_gains", "capaital_losses", "from_stocks" sont très déséquilibrées, avec énormément d'individu à 0, par rapport au nombre d'individu avec des valeurs supérieures à 0.
+Enfin, la variable "weeks_worked_in_year" présente beaucoup d'individu à 0 et à 52, et une proportion beaucoup plus faible se répartissant entre ces deux bornes. Pour terminer sur l'analyse univariée sur variable quantitative, nous proposons les boites à moustaches mais elles n'apportent pas grand chose par rapport à ce qui a déjà été dit.
+
+```{r,echo=FALSE,results='hide',mesage=FALSE, warning = TRUE,fig.align = 'center', fig.height = 7, fig.width = 8}
+
+
+par(mfrow=c(3,3))
+mapply(Census[,varhist],
+       FUN=function(xx,name){Boxplot(xx,main=name,cex.names = 0.4,id.n=2,ylab="")},
+       name=varhist)
+```
+
+
+## 2.2  Variables qualitatives
+Nous avons vu plus haut que certaines variables ont beaucoup de modalités, on va voir ici les modalités rares via des diagrammes en barres (on pourrait de façon équivalente visualiser cette information sous forme de tableaux). Les modalités rares pouvant avoir un impact défavorable sur l'efficacité de certains modèles, il est important de les identifier (en vue d'éventuels regroupements par la suite).
+
+```{r,echo=FALSE,results='hide',mesage=FALSE, warning = TRUE,fig.align = 'center', fig.height = 22, fig.width = 12}
+par(mfrow=c(12,3))
+mapply(Census[,var.factor],
+       FUN=function(xx,name){
+         par(mar=c(5, 15, 4, 2) + 0.1)
+         barplot(table(xx),main=name,cex.axis=1,cex.main=0.65,cex.names = 0.8,horiz = TRUE,las=2)
+         },
+       name=names(var.factor))
+```
+
+Mais nous ne pouvons envisager des regroupements qu'après avoir vérifié que ces regroupements sont pertinents vis à vis de notre variable réponse outcome, ce que nous abordons dans l'analyse bivariée.
+A ce stade, nous en restons donc aux constats : il y a des variables avec beaucoup de modalités et certaines modalités rares, on devra en tenir compte (traitement éventuels) si on veut utiliser ces variables pour la prédiction.
+
+## 2.3  Analyse bivariée
+
+Dans le cadre de notre objectif de prédiction, il convient prioritairement d'étudier le lien entre les variables explicatives et la réponse, mais on cherchera aussi par la suite à identifier des liens entre les variables explicatives
+
+### 2.3.1 Lien entre variables explicatives et variable réponse "outcome"
+
+#### 2.3.1.1 Lien entre outcome et les variable quantitatives
+
+Nous pouvons comparer les boites à moustaches de nos données quantitatives en fonction d'outcome. Commençons par les variables dont on a vu plus haut qu'elles étaient très déséquilibrées ("wage_per_hour", "capital_gains", "capaital_losses", "from_stocks").
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 3, fig.width = 4.5}
+boxplot(Census$wage_per_hour~Census$outcome)
+```
+Il est dificile de conclure sur la base de cette représentation, il est en de même pour les autres ("capital_gains", "capaital_losses", "from_stocks") dont nous ne donnons pas la représentation.La valeur "0", est très fortement représentée, que cela soit pour outcome "-50000" et pour outcome "+50000".
+
+Avec les variables "Age","weeks_worked_in_year" et "num_persons_worked_for_employer" qui ont une distribution relaitvement équilibrée, on a une meilleure lisibilité :
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 4, fig.width = 6.5}
+par(mfrow=c(1,3))
+p1<-boxplot(Census$age~Census$outcome)
+p2<-boxplot(Census$num_persons_worked_for_employer~Census$outcome)
+p3<-boxplot(Census$weeks_worked_in_year~Census$outcome)
+
+```
+Ainsi, pour l'age, on observe un écart qui semble significatif entre les individus avec outcome "-50000" et avec outcome "+50000". On voit qu'en moyenne les individus ont un peu plus de 30 ans (33,7) avec outcome "-50000" etun peu moins de 50 ans (46,4)avec outcome "+50000".
+
+Pour "num_persons_worked_for_employer", le lien semble marqué mais on ne pourra conclure sur la force de ce lien qu'après un calcul statistique.
+
+Parmi les individus avec outcome = +50000, il y en a une très forte proportion avec "weeks_worked_in_year" = 52. Dès maintenant, on peut supposer que cette variable jouera un rôle dans la prédiction.
+La présentation suivante est complémentaire à la boxplot :
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+# distribution conditionnelle de weeks_worked_in_year
+plot2<-lattice::histogram(~weeks_worked_in_year|outcome,data=Census,type="density",col="lightblue",ylab="Densité")
+
+# affichage
+grid.arrange(plot2,nrow=1,ncol=1)
+```
+Nous pouvons imaginer une explication logique à cette distribution. Les individus avec outcome à +50000 sont très majoritairement des individus travaillant 52 semaines. Mais il y a aussi beaucoup de personnes travaillant 52 semaines et qui ont un outcome <50000. Ils ont surement un travail peu qualifié et peu rémunérateur.
+Les individus travaillant 0 semaine par an ont très majoritairement un outcome inférieur à 50k, mais il en existe qui ont un outcome > 50000. Ces derniers pourraient être des rentiers. 
+
+Les boites à moustache ne permettant pas de conclure quant à la force des éventuelles liaisons, voici les rapport de corrélation entre les variables quantitatives et outcome :
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+
+
+#calcul des rapport de corrélation
+res.eta2<-sapply(Census[,var.numeric],eta2,y=Census$outcome)
+
+#tri par valeurs décroissantes
+res.eta2<-sort(res.eta2)
+
+#représentation
+par(mar=c(5, 15, 4, 2) + 0.1)#pour gérer les marges du graphique
+barplot(res.eta2,cex.names = 0.7,horiz = TRUE,las=2,xlab=expression(eta^2))
+```
+Nous trouvons la variable "weeks_worked_in_year" comme ayant le lien le plus fort avec outcome, suivi de "capital_gains", "num_persons_worked_for_employer", et "from_stocks".  **Une ACP** complétera ultérieurement cette approche, mais cela permet de pointer des variables pouvant jouer un rôle dans la prédiction.
+
+"Capital_losses" et "wage_per_hour" sont moins liés à "outcome".
+
+Etudions un peu plus le cas de "Age" avec un graphique "proportion de outcome +50K = f(age)" :
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+library(questionr)
+tab <- table(Census$age, Census$outcome)
+prop<-lprop(tab)
+propbis<-prop[,2]
+plot(propbis,xlim=c(0,91),ylim=c(0,18),xlab="Age",ylab="Pourcentage de personnes +50 000$",main="% +50 000$ en fonction de l'âge",sub="la ligne horizontale correspond à la moyenne");par(new=TRUE)
+plot(92,6.204,col="white",xlim=c(0,91),ylim=c(0,18),xlab="",ylab="")
+abline(h=6.204,col="grey")
+```
+
+On a traité jusqu'ici l'âge comme une variable quantitative mais son traitement implique souvent de la passer en classes. Par ailleurs, dans beaucoup de domaines, l'age ne réagit pas de façon corrélée à la mesure (vitesse de course faible pour enfants et vieillards). Et dans le domaine médical, les âges faibles et très grands constituent des populations exposées à certains risques et sont regroupés.
+Notre courbe montre un peu la même choses, et cela nous dit que nous avons tout intérêt à réaliser des classes :
+
+- probabilité nulle à quasi nulle d'observer outcome +50K pour les âges compris dans [0,18]
+
+- probabilité intermédiaire d'observer outcome +50K pour les âges compris dans [19,33] et [63,90]
+
+- probabilité forte (en comparaison à l'ensemble des données) d'observer outcome +50K pour les âges compris dans [34,62]
+
+Cette transformation de données est une transformation "métier", on réalise un découpage à la lumière de notre lecture du lien entre la variable "age" et la variable "outcome" et de notre objectif.On ajoute donc une variable qualitative "groupedeage".
+
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+Census$groupedeage <-cut(Census$age,breaks=c(-1,18.5,33.5,62.5,100),include.lowest = TRUE,labels=c("jusqu'à 18 ans","19 à 33 ans","34 à 62 ans","63 ans et plus"))
+levels(Census$groupedeage)
+
+```
+#### 2.3.1.2 Lien entre outcome et les variable qualitatives
+
+Mesurons le lien entre les variables qualitatives (auxquelles nous avons donc ajouté "groupedeage" et "outcome" avec le V de Cramer (pour information, nous préférons le V de Cramer au test du Khi-deux car il est plus approprié avec un très grand nombre d'individus) : 
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+#Creation d'une matrice contenant les variables qualitatives et quantitatives discrètes (sans la variable outcome)
+don.cramer<-Census[,c(var.factor)]
+# j'ai rajouté groupdeage, il est bien en factor, mais jamais repris par la ligne ci dessus, je ne comprends, je fais la selection plus manuellement
+#don.cramer<-Census[,-c(1,6,17:19,30,39)]
+don.cramer<-don.cramer[,-which(colnames(don.cramer)=="outcome")]
+
+#calcul du V de cramer entre Creditability et les autres variables non continues de don.cramer
+library(DescTools)
+res.cramer<-sapply(don.cramer,
+                   FUN=function(xx,yy){CramerV(table(xx,yy))},
+                   yy=Census$outcome)
+
+#tri par valeurs décroissantes
+sort.cramer<-sort(res.cramer)
+
+kable(sort.cramer,booktabs= T,caption = "Resultats V de CRAMER")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Voyons le graphique
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+#représentation
+par(mar=c(5, 15, 4, 5) + 0.001)
+barplot(sort.cramer,horiz = TRUE,las=2,xlab="V de Cramer",cex.names=0.5)
+ 
+```
+Parmi les variables qualitatives, les variables les plus liées à outcome (on donne ici celles pour lesquelles le V de cramer est supérieur à 0,19) sont : detailled_occupation_recode, education, major_occupation_code, detailed_industry_recode, major_industry_code, class_of_worker, detaille_household_and_family_stat, groupedeage, tax_filler_stat, detailled_household_summary_in_household, marital_stat.
+
+Inversement, des variables comme year, live_int_his_house_1_year_ago (par exemple) sont très peu lièes à outcome.
+
+Ces analyses pourront être utiles en vue d’une réduction du nombre de colonnes, les variables les moins liées à outcome pourront être écartées sans impact ou avec un impact négligeable sur la qualité de la prédiction d'outcome.
+
+```{r,echo=FALSE,eval=FALSE}
+#catdes(Census,num.var = ncol(Census)-1)
+```
+
+
+
+### 2.3.2 Lien entre variables explicatives
+#### 2.3.2.1  Variables quantitatives
+
+Des liaisons trop fortes entre variables explicatives peuvent conduire à de grande instabilité dans les modèles. L’analyse des liaisons entre variables explicatives permettra de détecter les couples de variables les plus liées.
+Nous concervons la variable "age" comme valeur numérique, même si nous avons montré que pour la modélisation, la variable "groupedeage" sera plus pertinente.
+
+Voici la **matrice des corrélations** :
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+library(DescTools)
+matcor<-cor(Census[,var.numeric])
+#par(mar=c(5, 15, 4, 5) + 0.0001)
+PlotCorr(matcor,cex.axis = 0.55)
+text(x=rep(1:ncol(matcor),ncol(matcor)), y=rep(1:ncol(matcor),each=ncol(matcor)),
+     label=sprintf("%0.2f", matcor[,ncol(matcor):1]), cex=0.6, xpd=TRUE)
+```
+Nous n'observons pas de fortes corrélations, si ce n'est pour le couple "weeks_worked_in_year" et "num_persons_worked_for_employer". Ci dessous, avec les coefficients de Spearman (plus adpaté si nos variables ne suivent pas une loi normale, ce qui est le cas), nous concluons de la même manière.
+
+Voici la matrice des **corrélations avec coefficient de spearman** :
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+matcor<-cor(Census[,var.numeric],method = "spearman")
+PlotCorr(matcor,cex.axis = 0.55 )
+text(x=rep(1:ncol(matcor),ncol(matcor)), y=rep(1:ncol(matcor),each=ncol(matcor)),
+     label=sprintf("%0.2f", matcor[,ncol(matcor):1]), cex=0.6, xpd=TRUE)
+```
+
+#### 2.3.2.2 Variables qualitatives entre elles
+
+De la même façon, on détermine les V de Cramer entre les variables explicatives qualitatives.
+
+
+```{r, echo = FALSE,eval=TRUE,warning=FALSE, fig.align = 'center', fig.height = 7, fig.width = 9}
+var.expl.quali<-names(var.factor[-length(var.factor)])
+matcram<-PairApply(Census[,var.expl.quali], CramerV, symmetric = TRUE)
+
+PlotCorr(matcram,
+         cols = colorRampPalette(c("white", "steelblue"), space = "rgb")(20),
+         breaks=seq(0, 1, length=21),cex.axis = 0.6, 
+         args.colorlegend = list(labels=sprintf("%.1f", seq(0, 1, length = 15)), frame=TRUE))
+text(x=rep(1:ncol(matcram),ncol(matcram)), y=rep(1:ncol(matcram),each=ncol(matcram)),
+     label=sprintf("%0.2f", matcram[,ncol(matcram):1]), cex=0.6, xpd=TRUE)
+
+```
+Nous observons de très fortes liaisons entre :
+
+- detailed_industry_recode et major_industry code : c'est normal, par construction, ces données sont liées par une arborescence. On peut donc considérer qu'il y a redondance.
+
+- idem entre major_occupation_code et detailled_occupation_code et pour region_of_previous_residence et state_of_previous_residence 
+
+- year et les 4 variables commençant par migration... : nous avons vu plus haut que cela s'explique par l'absence de données pour une valeur de year, et la présence pour l'autre valeur de year.
+
+
+et des liaisons fortes entre :
+
+- les variables commençant par migration... et live_in_this_house_previous_year
+
+- country_birth_self avec country of birth_mother et father
+
+ce qui est logique dans les deux cas, et qui dénote aussi une forme de redondance dans l'information.
+
+
+Ces éléments nous donnent des indications pour supporter nos analyses ACM à venir.
+
+## 2.4 Analyse multivariée
+
+### 2.4.1 ACP sur les données quantitatives
+
+Nous effectuons une ACP sur les données quantitatives (hormis l'age) en considérant outcome comme une variable supplémentaire quantitative.
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+library('FactoMineR')
+
+data_acp<-Census[,c(6,17:19,30,39,41)]
+#data_acp$outcome<-as.integer(data_acp$outcome)
+res.pca<-PCA(data_acp,quali.sup=7,graph = FALSE) #outcome est une variable supplémentaire, non intégrée dans l’acp
+options(max.print = 1500)
+
+```
+```{r,echo=FALSE,eval=FALSE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+summary(res.pca)
+```
+
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 4, fig.width = 5.5}
+par(mar = c(4.1, 4.1, 1.1, 2.1))
+
+fviz_pca_ind(res.pca, label="none", habillage=Census$outcome, axes = 1:2,addEllipses=TRUE, ellipse.level=0.95)
+
+```
+On voit que la modalité -50000 est plus lié à la dimension 1
+
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 4, fig.width = 5.5}
+par(mar = c(4.1, 4.1, 1.1, 2.1))
+
+p<-fviz_pca_var(res.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),repel = TRUE # Évite le chevauchement de texte
+             )
+#p<-fviz_add(p, res.pca$quanti.sup$coord,  geom = c("arrow", "text"), color = "red")
+p
+
+```
+
+
+
+
+Les éléments les plus intéressants qui ressortent de l'ACP nous montre que :
+
+- la première composante est essentiellement liée à num_persons_worked_for_employer, et weeks_worked_in_year
+
+- la deuxième à capital_gains et from_stocks
+
+- la troisème à capital_losses
+
+Enfin, sur chacune de ces trois composantes, les modalités d'outcome ont des coordonnées significativement différentes, respectivement (-0.099, -0.070, -0.018) pour -50k et (1.496, 1.059, 0.278) pour +50ke. Les cos2 des deux premières composantes sont assez élevés (0.64 et 0.321), mais faible pour la troisième.
+
+Nous pouvons conclure pour notre prédiction que les 4 variables quantitatives num_persons_worked_for_employer, et weeks_worked_in_year,capital_gains et from_stocks sont les plus susceptibles de contribuer à la qualité d'un modèle de prédiction.
+
+wage_per_hours et capital_losses contribuent peu à la variable réponse outcome mais capital_losses est proche de outcome. C'est une variable rare qui correspond à une perte de capital et qui necessite d'avoir un capital financier.En majorité, ce sont les individus avec un revenu confortable qui possèdent un capital financier.  
+
+Nous pouvons envisager, si la modélisation nous contraint dans le nombre de variables, de :
+
+- choisir entre num_persons_worked_for_employer, et weeks_worked_in_year, puisque ces deux variables sont très liées,
+
+- créer une variable composite (capital_gains + from_stocks) puisque ces deux variables correspondent à des revenus et agissent dans le même sens vis à vis d'outcome.
+
+### 2.4.2 ACM sur les données qualitatives
+
+
+On réalise l'ACM en mettant la variable outcome en variable illustrative.
+
+On gère les modalités rares (fréquence relative <5%) en effectuant de la ventilation.
+
+```{r,eval=FALSE,echo=FALSE}
+#levels_factors(censusmca)
+```
+
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 4, fig.width = 5.5}
+
+censusmca<-Census[,c(2:5,7:16,20:29,31:38,40:42)]
+
+res.mca<- MCA(censusmca,graph=FALSE,quali.sup = 34,level.ventil = 0.05)#
+#res.mca<-MCA(Census,graph=FALSE,quali.sup=ncol(Census),level.ventil = 0.05)
+
+#On affiche les graphiques relatifs au premier plan
+```
+
+
+
+**Voici le graphe des individus**
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 4, fig.width = 5}
+grp <- as.factor(censusmca[, "outcome"])
+fviz_mca_ind(res.mca, label="none", habillage=grp, addEllipses=TRUE, ellipse.level=0.95)
+```
+
+
+**Voici le graphe des variables avec outcome**
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 5, fig.width = 7}
+p1<-fviz_mca_var (res.mca, choice = "mca.cor",jitter = list(what = "all",width = 0.1, height = 0.15),
+            repel = TRUE, labelsize=3,
+            ggtheme = theme_minimal ())
+
+
+p1
+```
+**Voici le graphe avec les modalités avec "-50000" et "+50000"**
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 6, fig.width = 7}
+p2<-fviz_mca_var(res.mca,labelsize=3,select.var = list(contrib = 20),jitter = list(what = "both",width = 0.1, height = 0.15) ,col.var = "contrib")+ scale_color_gradient2(low = "white", mid = "blue",high = "red", midpoint = 2)+theme_minimal()
+                
+p2 <- fviz_add(p2, res.mca$quali.sup$coord, color = "green")
+p2
+```
+
+
+L'exploitation visuelle n'est pas facile du fait du nombre important de variables et du nombre important de modalités. Néanmoins, et en s'appuyant sur les détails que nous mettrons en annexe et des labels en rouge qui contribuent le plus, on fait apparaître un écart important sur la dimension 1 entre outcome +50k et outcome -50k.
+
+Les contributions les plus fortes à cette dimension viennent de :
+
+- l'age via groupedeage,
+- un groupe de variables lié au type de travail (class_of_worker,detailed_industry_recode, detailed_occupation_recode, major_industry_code, major_occupation_code )
+- le niveau d'éducation (education)
+- la composition du foyer (detailed_household_and_family_stat, detailed_household_summary_in_household, family_members_under_18)
+- le statut par rapport à des pensions ou des taxes (tax_filer_stat,veterans_benefits).
+
+On peut noter que la dimension 2 est liée à des variables peu liées à outcome. On retrouve ce qu'on a déjà vu plus haut : forte liaison entre les variables en migration... et year, du à des manquants sur une année. Il y a d'autres variables liées elles aussi à un changement de lieu (region et state of previous residence, live_in_this_house_one_year_ago).
+
+La faible repréentativité des premières dimensions limite la portée de cette acm, mais couplée avec les résultats trouvés sur les liaisons plus haut, on peut conclure que, en vue d'une modélisation, on peut retenir parmi les variables qualitatives  :
+
+ - la variable "groupedeage"
+ - la variable "education"
+des variables liés au type de travail :
+
+-la variable "detailled_occupation_recode"et nous n'utiliserons pas major_occupation_code du fait de leur liaison
+-la variable "detailed_industry_recode", et nous n'utiliserons pas major_industry_code du fait de leur liaison
+-la variable "class_of_worker"
+      
+- la variable "tax_filler_stat"
+- la variable "detailled_household_and_family_stat", et nous n'utiliserons pas 
+ "detailled_household_summary_in_household" du fait de leur liaison.
+- la variable "marital_stat".
+
+Si notre modèle doit être amélioré, des variables comme : "veterans_benefits", 
+ "full_or_part_time_employment_stat", "family_members_under_18" et "sex" pourront dans un deuxième temps être envisagés.
+
+Pour les besoins de l'étude et pour illustrer des regroupements de modalités, nous continuons de travailler sur la modalité "country_of_birth_self". Nous avons vu qu'elle était fortement liée à country_of_birth_mother et father. On peut choisir d'utiliser "country_of_birth_self" uniquement, sans impacter ou de façon négligeable la modélisation.
+
+Ces variables sont plutôt logique car il est très rare d'avoir un revenu élevé avant 24 ans et sans un diplome universitaire. La classe de travail et le secteur sont aussi important car il est moins rare d'avoir un revenu supérieur à +50k$ dans le domaine de la finance que dans le batiment. De même il est logique de prendre en compte le statuts marital,full_or_part_time_employment_stat,"full_or_part_time_employment_stat", "family_members_under_18 ou le sexe qui sont des sources d'inégalités salariales entre hommes et femmes, mères célibataires et couples sans enfants, travail à temps partiel...
+
+Notons que les variables pour lesquels nous avions des manquants semblent avoir un intérêt limité par rapport à notre objectif de modélisation.
+
+
+# 3.Pré-traitement 
+
+## 3.1 Simplifications des données
+
+### 3.1.1 Analyses en vue d'éventuelles transformations des données qualitatives / regroupement de modalités
+
+Afin de faciliter les analyses, nous effectuons des regroupements de modalités. Nous proposons de travailler sur quelques variables seulement On choisit des variables où il y a une logique apparente de regroupement (approche "métier"). On s'assure au préalable que ces regroupements ne vont pas nous faire perdre de l'information, et que la distribution d'outcome est homogène parmi les différentes modalités qu'on souhaite regrouper.
+
+#### La variable "country_of_birthself"
+
+Dans le cas de la variable "country of birth self" par exemple, on peut représenter le pourcentage de outcome +50 K pour s'assurer qu'on fait des regroupements pertinents :
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+tab4<-table(Census$country_of_birthself,Census$outcome)
+prop4<-lprop(tab4)
+head(prop4)
+#kable(prop4,booktabs= T,caption = "Pourcentage de outcome avec la variable country_of_birthself ")  %>%
+  #kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+Nous observons que les groupes au sens géographique sont relativement homogènes concernant la variable outcome. On peut donc procéder au regroupement avec pas ou peu de perte d'information (Asie de l'est, Asie Centrale, Amérique centrale, Amérique du sud, Europe de l'est et Europe de l'ouest).
+
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+#levels(Census$country_of_birthself)
+
+Asia_East <- c(" Cambodia", " China", " Hong", " Laos", " Thailand",
+               " Japan", " Taiwan", " Vietnam")
+
+Asia_Central <- c(" India", " Iran")
+
+Central_America <- c(" Cuba", " Guatemala", " Jamaica", " Nicaragua", 
+                     " Puerto-Rico",  " Dominican-Republic", " El-Salvador", 
+                     " Haiti", " Honduras", " Mexico", " Trinadad&Tobago")
+
+South_America <- c(" Ecuador", " Peru", " Columbia")
+
+
+Europe_West <- c(" England", " Germany", " Holand-Netherlands", " Ireland", 
+                 " France", " Greece", " Italy", " Portugal", " Scotland")
+
+Europe_East <- c(" Poland", " Yugoslavia", " Hungary")
+```
+**Création de nouveaux labels**
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 3.5, fig.width = 6.5}
+Census <- mutate(Census, 
+       native_region = ifelse(country_of_birthself%in% Asia_East, " East-Asia",
+                ifelse(country_of_birthself %in% Asia_Central, " Central-Asia",
+                ifelse(country_of_birthself %in% Central_America, " Central-America",
+                ifelse(country_of_birthself %in% South_America, " South-America",
+                ifelse(country_of_birthself %in% Europe_West, " Europe-West",
+                ifelse(country_of_birthself%in% Europe_East, " Europe-East",
+                ifelse(country_of_birthself == " United-States", " United-States", 
+                       " Outlying-US" ))))))))
+
+
+
+Census$native_region <- factor(Census$native_region, ordered = FALSE)
+
+
+levels(Census$native_region)
+ggplot(Census, aes(x = native_region, fill = outcome)) + geom_bar(position="fill") + theme(axis.text.x = element_text(angle = 90)) + ggtitle("native_region")
+
+```
+
+```{r,echo=FALSE,eval=FALSE, warning = FALSE}
+dim(Census)
+```
+
+
+
+#### La variable "educ_level"
+
+De la même manière, nous effectuons des regroupements sur le niveau d'education, pour limiter fortement le nombre de modalités avec pas ou peu de perte d'informations.
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+# creation nouveaux labels
+
+noHS <- c(" Children"," Less than 1st grade", " 1st 2nd 3rd or 4th grade"," 9th grade" ," 7th and 8th grade"," 5th or 6th grade"," 12th grade no diploma"," 11th grade"," 10th grade")
+HS <- c(" High school graduate"," Some college but no degree")
+AS <- c(" Associates degree-academic program"  ," Associates degree-occup /vocational"," Prof school degree (MD DDS DVM LLB JD)")
+GS <- c(" Masters degree(MA MS MEng MEd MSW MBA)"," Doctorate degree(PhD EdD)" )
+
+```
+
+**Création de nouveaux labels**
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,fig.align = 'center', fig.height = 3.5, fig.width = 6.5}
+Census$educ_level <- ifelse(Census$education %in%  HS, "HS-grad",
+                      ifelse(Census$education %in%  noHS, "no-HS",
+                        ifelse(Census$education %in%  AS, "CC-grad",
+                          ifelse(Census$education == GS, "grad-school", "College"))))
+
+Census$educ_level <- as.factor(Census$educ_level)
+#Census.test$educ_level<- as.factor(Census.test$educ_level)
+
+
+
+levels(Census$educ_level)
+
+ggplot(Census, aes(x = educ_level, fill = outcome)) + geom_bar(position="fill") + theme(axis.text.x = element_text(angle = 90)) + ggtitle("education level")
+```
+
+Nous pouvons analyser plus finement la distribution de outcome selon le niveau d'éducation avec un graph de type mosaïc plot :
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,results='hide',fig.align = 'center', fig.height = 4.5, fig.width = 4.5}
+mosaicplot(Census$educ_level~Census$outcome, shade=3,main="Distribution d'outcome en fonction du niveau d'éducation",las=3)
+
+```
+
+On trouve une sur-représentation de +50K pour les niveaux d'éducation CC-grad, College et Grad-school (et une sous représentation pour les HS-grad et les no-HS). Une liaison entre les variables outcome et edcu_level semble évidente, c'est quelque chose qu'on a déjà vu plus haut, mais avec ce graphique, on valide facilement des regroupements de modalités.
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+#chisq.test(Census$outcome,Census$educ_level)
+```
+
+
+
+
+#### La variable "extra_outcome"
+
+On peut définir une variable "extra_income" comme étant le montant des gains de capitaux (capital_gains) et des actions(from_stock), et discrétiser cette variable en s'intéressant uniquement aux trois modalités suivantes : extra_income inférieur à 0, nul, ou supèrieur à 0. Regardons la répartition outcome +50K/-50K pour ces trois modalités :
+
+**Création de nouveaux labels**
+```{r,echo=FALSE, warning = FALSE,results='FALSE', cache=TRUE}
+Census$extra_outcome <- Census$capital_gains + Census$from_stocks
+Census$extra_outcome <- ifelse(Census$extra_outcome == 0, "none",
+                            ifelse(Census$extra_outcome < 0 , "negative", "positive"))
+
+Census$extra_outcome <- as.factor(Census$extra_outcome)
+
+levels(Census$extra_outcome)
+```
+En fait, nous n'observons que des gains nuls ou positif, ce qui est assez logique puisque nous n'avions pas de valeur négative pour les deux composantes de cette nouvelle variable.
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,results='hide',fig.align = 'center', fig.height = 3, fig.width = 4.5}
+library(ggplot2)
+ggplot(Census, aes(x = extra_outcome, fill = outcome)) + geom_bar(position="fill") + theme(axis.text.x = element_text(angle = 90)) + ggtitle("extra_outcome")
+```
+
+
+```{r,echo=FALSE, warning = FALSE,results='hide', cache=TRUE}
+str(Census)
+
+```
+
+Cette répartition nous dit que les gens qui ont des revenus de capitaux, ont plus souvent des revenus du travail supérieurs à 50K$ que les gens qui n'ont pas de revenus de capitaux.
+
+
+
+### 3.1.2 Reduction des données en colonnes 
+
+
+Sur le choix des variable quantitatives, nous pouvons conclure pour notre prédiction que nous garderons 4 variables quantitatives: 
+
+-num_persons_worked_for_employer
+
+-weeks_worked_in_year
+
+-capital_gains et from_stocks transformées en variable qualitative "extra_outcome"
+
+
+Sur le choix des variables quantitatives, nous pouvons conclure pour notre prédiction que nous garderons 13 variables qualitatives  :
+
+- la variable "groupedeage"
+ 
+- la variable "education" qui sera transformée en "educlevel" 
+- la variable "detailled_occupation_recode"
+
+- la variable "detailed_industry_recode"
+- la variable "class_of_worker"
+- la variable "tax_filer_stat"
+- la variable "detailled_household_and_family_stat"
+- la variable "marital_stat"
+
+Si notre modèle doit être amélioré, les variables ci-dessous pourront venir en supplément des variables ci dessus : 
+- "veterans_benefits"
+- "full_or_part_time_employment_stat"
+- "family_members_under_18" 
+- "sex" 
+- "country_of_birth_self" transformée en "native_region"
+
+
+Nous gardons finalement 16 variables explicatives et outcome, donc 17 variables pour commencer la modélisation.
+
+```{r, echo = FALSE, eval=FALSE, cache=TRUE}
+#str(Census)
+```
+
+
+
+
+
+```{r, echo = FALSE, eval=TRUE}
+data_Census<- Census[,c(2:4,8,13,16,20,23,30,31,38,39,41,42,43,44,45)] 
+
+```
+Nous avons créé un nouveau jeu de donnée **data_Census**
+
+La dimension de notre tableau est :
+```{r, echo = FALSE, eval=TRUE}
+cat(dim(data_Census))
+```
+soit 17 variables et 199526 lignes
+
+Les types de variables sont :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+table(sapply(data_Census,class))
+```
+Nonbre de haut et faible salaires :
+```{r, echo = FALSE, eval=TRUE}
+cat(nrow(filter(data_Census, data_Census$outcome == "+50000")), "lignes avec outcome = +50 000$ pour data_Census\n")
+
+cat(nrow(filter(data_Census, data_Census$outcome != "+50000")), "lignes avec outcome = -50 000$ pour data_Census\n")
+#cat(nrow(filter(Census, Census$outcome == "+50000")), "lignes avec outcome = -50 000$ pour Census\n")
+
+#cat(nrow(filter(Census, Census$outcome != "+50000")), "lignes avec outcome = -50 000$ pour Census")
+
+```
+
+
+```{r, echo = FALSE, eval=FALSE}
+str(data_Census)
+```
+
+
+
+# 4.Modelisation
+
+
+## 4.1 Découpage des jeux de données apprentissage et Test
+
+
+Pour détecter un sur-apprentissage, nous allons diviser les données en deux sous-ensembles, données apprentissage et test-validation. Pour cela, il suffit de découper notre jeu de données en deux (soit 30% pour les données de test-validation et 70% pour l’apprentissage).
+
+Nous allons vérifier les colonnes avec des valeurs manquantes NA
+```{r, echo=FALSE, eval=TRUE, cache=TRUE}
+#verification
+
+sum(is.na(data_Census))
+```
+Ici, nous avons aucune lignes avec des valeurs manquantes.
+
+Ensuite, nous divisons l'ensemble de données apprentissage et Test.
+```{r,echo=FALSE, warning = FALSE,cache = TRUE}
+train = sample(c(TRUE, FALSE), size = nrow(data_Census), replace = TRUE, prob = c(0.7, 0.2))
+
+small_train_data = data_Census[train,]
+validation_data = data_Census[!train,]
+```
+
+Avant nous avions `r nrow(Census)` lignes. Maintenant, nous avons pour les données small_train_data:
+
+```{r,echo=FALSE, warning = FALSE}
+cat(nrow(small_train_data),"lignes pour la partie données d'apprentissage")
+```
+Nous avons pour les données validation_data:
+
+```{r,echo=FALSE, warning = FALSE}
+cat(nrow(validation_data),"lignes  pour la partie données de test")
+
+```
+
+
+```{r, echo = FALSE,eval=FALSE}
+str(small_train_data)
+str(validation_data)
+
+#verification
+colnames(small_train_data)[ apply(small_train_data, 2, anyNA) ]
+
+```
+ 
+Regardons en détail le jeu de donnée small_train_data et validation_data
+
+```{r, echo = FALSE, eval=FALSE}
+str(balanced_small_train_data)
+```
+
+```{r, echo = FALSE, eval=TRUE}
+cat(nrow(filter(small_train_data, small_train_data$outcome == "+50000")), "lignes avec outcome = +50 000$ pour small_train_data\n")
+
+cat(nrow(filter(validation_data, validation_data$outcome == "+50000")), "lignes avec outcome = +50 000$ pour validation_data")
+```
+
+
+```{r, echo = FALSE, eval=TRUE}
+cat(nrow(filter(small_train_data, small_train_data$outcome != "+50000")), "lignes avec outcome = -50 000$ pour small_train_data\n")
+cat(nrow(filter(validation_data, validation_data$outcome != "+50000")), "lignes avec outcome = -50 000$ pour validation_data\n")
+```
+
+
+### 4.1.1 Reduction des données en lignes 
+ 
+Nous allons créer une petit ensemble de donnée pour reduire le nombre de lignes afin de minimiser les temps d'exécution pour plusieurs modèles. Le plus petit ensemble de données d'apprentissage "balanced_small_train_data" est échantillonné de façon aléatoire. 
+
+```{r, echo = FALSE, eval=TRUE}
+set.seed(100)
+temp_high = filter(small_train_data, small_train_data$outcome == "+50000") # Take only the high salary observations
+temp_low = filter(small_train_data, small_train_data$outcome != "+50000") # Take only the low salary observations
+temp_low = sample_n(temp_low, nrow(temp_high), replace = TRUE) # Take a random sample of size the numbers of high salary observations without replacement from the low salary bucket
+#To minimize run times, a smaller_training data set is randomly sampled 
+balanced_small_train_data = rbind(temp_high, temp_low) # Create the unbalanced dataset
+
+```
+Nous avons `r nrow(balanced_small_train_data)` lignes sur ce jeu de donnée.
+
+Nous avons `r nrow(filter(balanced_small_train_data, balanced_small_train_data$outcome != "+50000"))` lignes avec outcome -50 000$ sur ce jeu de donnée.
+
+Nous avons `r nrow(filter(balanced_small_train_data, balanced_small_train_data$outcome == "+50000"))` lignes avec outcome +50 000$ sur ce jeu de donnée.
+
+Maintenant on va choisir quel algorithme est le plus précis pour prédire la  variable réponse **outcome** dont les modalités sont "-50000"  et  "+50000". Outcome indique  que  le  citoyen gagne  plus  ou  moins  de 50K$ par an. On va utiliser 8 algorithmes et comparer les performances de ces modèles.
+
+
+
+**1.Stochastic Gradient Boosting **
+
+**2.Random Forests**
+
+**3.Decision Trees CART**
+
+**4.Naives Bayes **
+
+**5.Support vector machine lineaire** 
+
+**6.Support vector machine radial **
+
+**7.K Plus proche voisins KNN**
+
+**8.Neural Networks**
+
+
+
+## 4.2 Modélisation de la variable réponse Outcome
+
+
+Nous allons utiliser Le Grid search avec traincontrol. La fonction **traincontrol** va diviser l'échantillon original en k échantillons et le répeter k fois l'apprentissage du modèle en faisant des combinaisons de façon aléatoire.
+
+La méthode sera le **Grid search**  qui permet l'optimisation avec des hyperparameters de la prédiction. Le Grid search permet de tester une série d'hyperparamètres et de comparer les performances de prédiction pour déduire le meilleur paramétrage.
+
+
+
+### 4.2.1 Stochastic Gradient Boosting 
+
+
+Le Stochastic Gradient Boosting utilise une méthode d’agrégation de modèles avec le boosting. Cet algorithme utilise le gradient de la fonction de perte pour le calcul des poids des individus lors de la construction de chaque nouveau modèle.
+
+Stochastic Gradient Boosting
+
+  method = 'gbm'
+
+Type: Regression, Classification
+
+Tuning parameters:
+
+   - n.trees (# Boosting Iterations)
+   
+   - interaction.depth (Max Tree Depth)
+   
+   - shrinkage (Shrinkage)
+   
+   - n.minobsinnode (Min. Terminal Node Size)
+
+Required packages: gbm, plyr
+
+A model-specific variable importance metric is available.
+
+
+#### **Fine-Tuning Hyperparameters avec Cross Validation et Grid Search**
+
+Nous utilisons le paramètre number=2 et pas de répétitions car le temps d'execution est trop long. 
+
+```{r, echo=FALSE,eval=TRUE, warning = FALSE,cache=TRUE}
+
+
+set.seed(825)
+start_timegbm4 = Sys.time()
+cctrl1 <- trainControl(method = "cv", number = 2, search = "grid")
+
+gbmGrid <-  expand.grid(interaction.depth = c(2),n.trees = c(950,1050,1150,1200,1300,1400), shrinkage = 0.15, n.minobsinnode=c(18))
+
+gbm.fit4 <- caret::train(outcome~.,data=small_train_data,method = "gbm",distribution = 'bernoulli',tuneGrid = gbmGrid , trControl = cctrl1, verbose = FALSE )
+
+
+end_timegbm4 = Sys.time()
+end_timegbm4 - start_timegbm4
+
+
+```
+
+Voici le resultat de l'apprentissage :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+gbm.fit4
+```
+Nous avons une faible erreur d’apprentissage.
+
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour n.trees est :" , gbm.fit4$bestTune$n.trees,"\n")
+cat("Best parameter pour shrinkage  est :" , gbm.fit4$bestTune$shrinkage,"\n")
+cat("Best parameter pour minobsinnode  est :" , gbm.fit4$bestTune$minobsinnode,"\n" )
+cat("Best parameter pour interaction.depth est :" , gbm.fit4$bestTune$interaction.depth,"\n")
+```
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, fig.align = 'center', fig.height = 3, fig.width = 4.5}
+plot(gbm.fit4)
+```
+
+Nous regardons quelle covariable influnce le plus le modèle.
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+varImp(gbm.fit4)
+```
+
+
+
+```{r , echo=FALSE,cache=TRUE,eval=FALSE, fig.align = 'center', fig.height = 6.5, fig.width = 6.5}
+par(mar=c(5, 15, 4, 2) + 0.01)
+plot(varImp(gbm.fit4),cex.names = 0.1,id.n=2,ylab="",col="white",xlab="")
+```
+La variable qui influence le plus est **extra_outcome**
+
+
+
+
+#### **Apply model to the test set**
+```{r, echo=FALSE,eval=TRUE, warning = FALSE,cache = TRUE}
+
+predict_gbm<-predict(gbm.fit4, validation_data)
+
+```
+
+
+
+Voici le resultat de la validation :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+postResample(predict_gbm, validation_data$outcome)
+caret::confusionMatrix(predict_gbm, validation_data$outcome)
+
+```
+Nous avons une faible taux d'erreur de validation et elle est équivalant à l'erreur d'apprentissage. 
+
+Le kappa est modéré donc accord modéré sur la prédiction par rapport à une prédiction au hasard.
+
+
+
+#### **Confusion Table**
+```{r, eval=TRUE, echo=FALSE, cache=TRUE}
+confusiongbm<-table(predict_gbm, validation_data$outcome)
+gbm.acc <-(confusiongbm[1,1] + confusiongbm[2,2])/sum(confusiongbm)
+gbm.recall<-confusiongbm[1,1]/(confusiongbm[1,1]+confusiongbm[2,1])
+gbm.precision<- confusiongbm[1,1]/(confusiongbm[1,1]+confusiongbm[1,2]) 
+
+
+resultats.gbm <- data.frame( 'Durée'=c(end_timegbm4 - start_timegbm4),Accuracy=c(gbm.acc),'Taux Erreur' = c(1-gbm.acc), Recall=c(gbm.recall), Precision=c(gbm.precision), row.names=c("Stochastic Gradient Boosting"))
+
+
+kable(confusiongbm, booktabs= T, caption = "Confusion Table Stochastic Gradient Boosting") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusiongbm[2,2]
+confusiongbm[1,1]
+confusiongbm[2,1]
+confusiongbm[1,2]
+nrow(filter(small_train_data, small_train_data$outcome != "+50000"))
+nrow(filter(small_train_data, small_train_data$outcome == "+50000"))
+nrow(small_train_data)
+
+``` 
+Notre classificateur est testé avec un jeu de `r nrow(small_train_data)` lignes outcome, dont `r nrow(filter(small_train_data, small_train_data$outcome != "+50000"))`  sont des outcome avec "- 50 000" et et les `r nrow(filter(small_train_data, small_train_data$outcome == "+50000"))` autres sont des outcome avec "+50 000".
+
+Pour cela, on veut savoir :
+
+- combien de outcome avec "- 50 000" seront faussement estimés comme des outcome avec "+50 000  et
+- combien de outcome avec "+50 000 ne seront pas estimés comme tels non détectés et classifiés à tort comme outcome avec "- 50 000" 
+
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r (confusiongbm[1,1]+confusiongbm[2,1])` données outcome "- 50 000" ,`r (confusiongbm[1,1]+confusiongbm[2,1])`   ont été estimés par le système de classification comme "-50 000" et 373 ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusiongbm[2,1]+confusiongbm[2,2]` données outcome "+ 50 000" , `r confusiongbm[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusiongbm[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusiongbm[1,1]+confusiongbm[2,1]` outcome estimés par le système comme "- 50 000", `r confusiongbm[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusiongbm[1,2]+confusiongbm[2,2]` outcome estimés par le système comme "+ 50 000", `r confusiongbm[2,2]` sont en fait des outcome "- 50 000".
+
+#### **Resultat de la prédiction**
+```{r, echo=FALSE, eval=TRUE, cache=TRUE}
+
+kable(resultats.gbm,booktabs= T,caption = "Resultats GBM")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Nous avons une bonne performance de prediction pour ce modèle.
+
+
+### 4.2.2 Classification Tree CART
+
+On va utiliser les fonctions sélectionnées dans le modèle rpart pour l'algorithme CART car il est facile d'utilisation pour un arbre binaire. Et pour la variable outcome la prédiction est binaire. 
+
+CART
+
+  method = 'rpart2'
+
+Type: Regression, Classification
+
+Tuning parameters:
+
+    - maxdepth (Max Tree Depth)
+
+Required packages: rpart
+
+
+#### **Fine-Tuning avec recherche des Hyperparameters avec repeated Cross Validation et Grid Search**
+
+Nous utilisons le paramètre number=10 et avec répétitions repeats=5 car le temps d'execution est rapide. 
+
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+#model2a: CART using rpart with CV
+
+start_timetree = Sys.time()
+set.seed(123)
+fitControl <- trainControl(method = 'repeatedcv', number=10, repeats=5, search = "grid")
+
+Grid1<-expand.grid(maxdepth=c(1:30))
+fit.rpartCV <- caret::train(outcome~., data=small_train_data, method = 'rpart2' ,tuneGrid = Grid1)
+
+tunetree<-fit.rpartCV$bestTune$maxdepth
+end_timetree = Sys.time()
+end_timetree - start_timetree
+
+```
+
+
+
+```{r,echo=FALSE, warning = FALSE, results='hide'}
+tree1 <- rpart(outcome~., data=small_train_data, maxdepth=tunetree)
+
+tree1
+```
+
+Voici le resultat de l'apprentissage :
+```{r,echo=FALSE, warning = FALSE}
+fit.rpartCV
+```
+Nous avons une faible erreur d'apprentissage.
+
+
+Voici les paramètres choisis :
+```{r,echo=FALSE, warning = FALSE}
+cat("Best parameter pour maxdepth est :" , tunetree)
+```
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, fig.align = 'center', fig.height = 3, fig.width = 4.5}
+plot(fit.rpartCV)
+
+
+```
+
+
+
+Voici notre arbre. On a utilisé la représentation graphique avec la fonction fancyRpartPlot
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, fig.align = 'center', fig.height = 5, fig.width = 8.5}
+
+fancyRpartPlot(tree1,palettes=c("Blues", "Oranges"),cex=0.5,main="Decision Tree", tweak=1)
+```
+La variable qui influence le plus est **detailed_occupation_recode**
+
+
+#### **Apply model to the test set**
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+tree.pred <- predict(fit.rpartCV, newdata=validation_data)
+```
+
+
+Voici le resultat de la validation:
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+postResample(tree.pred, validation_data$outcome)
+caret::confusionMatrix(tree.pred, validation_data$outcome)
+
+```
+
+Nous avons une faible taux d'erreur de validation et elle est équivalant à l'erreur d'apprentissage. 
+
+Le kappa est faible donc accord faible sur la prédiction par rapport à une prédiction au hasard.
+
+
+
+
+#### **Confusion Table**
+```{r, eval=TRUE,warning = FALSE,cache = TRUE}
+confusiontree <- table(tree.pred, validation_data$outcome)
+tree.acc <-(confusiontree[1,1] + confusiontree[2,2])/sum(confusiontree)
+tree.recall<-confusiontree[1,1]/(confusiontree[1,1]+confusiontree[1,2])
+tree.precision<- confusiontree[1,1]/(confusiontree[2,1]+confusiontree[1,1]) 
+
+
+resultats.tree <- data.frame( 'Durée'=c(end_timetree - start_timetree),Accuracy=c(tree.acc),'Taux Erreur' = c(1-tree.acc), Recall=c(tree.recall), Precision=c(tree.precision), row.names=c("Classification Tree CART"))
+
+
+
+kable(confusiontree, booktabs= T, caption = "Confusion Table Classification Tree CART") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+```{r,echo=FALSE,eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusiontree[2,2]
+confusiontree[1,1]
+confusiontree[2,1]
+confusiontree[1,2]
+
+```
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusiontree[1,1]+confusiontree[1,2]` données outcome "- 50 000" , `r confusiontree[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusiontree[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusiontree[2,1]+confusiontree[2,2]` données outcome "+ 50 000" , `r confusiontree[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusiontree[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusiontree[1,1]+confusiontree[2,1]` outcome estimés par le système comme "- 50 000", `r confusiontree[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusiontree[1,2]+confusiontree[2,2]` outcome estimés par le système comme "+ 50 000", `r confusiontree[2,2]` sont en fait des outcome "- 50 000".
+
+#### **Resultat de la prédiction**
+
+```{r, eval=TRUE,warning = FALSE, cache=TRUE}
+
+kable(resultats.tree,booktabs= T,caption = "Resultats Classification Tree CART")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+L'arbre de classification possède un temps d'exécution rapide avec bon taux de précison de la prédiction.
+
+
+### 4.2.3 Random Forest  
+
+Nous allons utiliser random Forest qui utilise le bagging et donc prend en compte la majorité des variables. 
+
+
+Random Forest
+
+  method = 'rf'
+
+Type: Classification, Regression
+
+Tuning parameters:
+
+    - mtry (#Randomly Selected Predictors)
+
+Required packages: randomForest
+
+A model-specific variable importance metric is available
+
+
+
+#### **Fine-Tuning Hyperparameters avec Cross Validation et Grid Search**
+
+Nous utilisons le paramètre number=2. 
+
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE}
+start_timerf = Sys.time()
+control <- trainControl(method="cv", 
+                        number=2, 
+                        allowParallel = TRUE,search = "grid")
+metric <- "Accuracy"
+tunegrid <- data.frame(mtry = seq(8,20,4))
+
+set.seed(123)
+
+rf_random <- caret::train(outcome~., data=balanced_small_train_data, 
+                method="rf", 
+                metric=metric, 
+                tuneGrid=tunegrid, 
+                trControl=control)
+
+
+end_timerf = Sys.time()
+end_timerf - start_timerf
+
+```
+Voici le resultat de l'apprentissage :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+rf_random
+```
+Nous avons une plus grande erreur d'apprentissage sur ce modèle par rapport aux premiers.
+
+
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour mtry est :" , rf_random$bestTune$mtry,"\n")
+
+```
+
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 2.5, fig.width = 4}
+plot(rf_random)
+```
+
+
+
+
+
+#### **Apply model to the test set**
+
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+rf.pred1 <- predict(rf_random, newdata=validation_data)
+postResample(rf.pred1, validation_data$outcome)
+caret::confusionMatrix(rf.pred1, validation_data$outcome)
+```
+
+Nous avons une faible taux d'erreur de validation et elle est équivalant à l'erreur d'apprentissage. 
+
+Le kappa est faible donc accord faible sur la prédiction par rapport à une prédiction au hasard.
+
+
+
+#### **Confusion Table**
+```{r, eval=TRUE,warning = FALSE, cache=TRUE}
+confusionrf <- table(rf.pred1, validation_data$outcome)
+rf.acc <-(confusionrf[1,1] + confusionrf[2,2])/sum(confusionrf)
+rf.recall<-confusionrf[1,1]/(confusionrf[1,1]+confusionrf[1,2])
+rf.precision<- confusionrf[1,1]/(confusionrf[2,1]+confusionrf[1,1]) 
+
+
+resultats.rf <- data.frame( 'Durée'=c(end_timerf - start_timerf),Accuracy=c(rf.acc),'Taux Erreur' = c(1-rf.acc), Recall=c(rf.recall), Precision=c(rf.precision), row.names=c("Random Forest  "))
+
+
+
+kable(confusionrf, booktabs= T, caption = "Confusion Table Random Forest  ") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionrf[2,2]
+confusionrf[1,1]
+confusionrf[2,1]
+confusionrf[1,2]
+
+```
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionrf[1,1]+confusionrf[1,2]` données outcome "- 50 000" , `r confusionrf[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionrf[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionrf[2,1]+confusionrf[2,2]` données outcome "+ 50 000" , `r confusionrf[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionrf[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionrf[1,1]+confusionrf[2,1]` outcome estimés par le système comme "- 50 000", `r confusionrf[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionrf[1,2]+confusionrf[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionrf[2,2]` sont en fait des outcome "- 50 000".
+
+
+#### **Resultat de la prédiction**
+```{r, eval=TRUE,warning = FALSE, cache=TRUE}
+
+kable(resultats.rf,booktabs= T,caption = "Resultats Random Forest  ")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Nous avons une bonne accuracy pour la prédiction mais le temps d'excution est long.
+
+### 4.2.4 Naive Bayes
+
+On va utiliser l'algorithme  naïf bayésien qui est l’une des méthodes les plus simples en apprentissage supervisé basée sur le théorème de Bayes. Il est peu utilisé par rapport aux arbres de décision ou les régressions logistiques mais il est facile d’estimer des paramètres et il est rapide.
+
+Naive Bayes
+
+  method = 'nb'
+
+Type: Classification
+
+Tuning parameters:
+
+    - fL (Laplace Correction)
+    
+    - usekernel (Distribution Type) = TRUE, FALSE
+    
+    - adjust (Bandwidth Adjustment)
+
+Required packages: klaR
+
+#### **Fine-Tuning Hyperparameters avec Cross Validation et Grid Search**
+
+Nous utilisons le paramètre number=10.
+
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+#Naive Bayes
+start_timenb = Sys.time()
+set.seed(123)
+# set up tuning grid
+search_grid <- expand.grid(usekernel = c(FALSE,TRUE),fL = c(0.4,0.6,0.8,1,1.2), adjust = seq(0, 3, by = 1))
+
+fitControl <- trainControl(method = 'cv', number = 10,search = "grid")
+NB_model <- caret::train(outcome~., data=balanced_small_train_data, method="nb",trControl=fitControl, tunegrid = search_grid)
+
+
+end_timenb = Sys.time()
+end_timenb - start_timenb
+```
+
+Voici le resultat de l'apprentissage :
+```{r, echo=FALSE, warning = FALSE, cache=TRUE}
+NB_model
+
+```
+Nous avons un faible résultat d'apprentissage.
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour fL est :" , NB_model$bestTune$fL ,"\n")
+cat("Best parameter pour usekernel est :" , NB_model$bestTune$usekernel ,"\n")
+cat("Best parameter pour adjust est :" , NB_model$bestTune$adjust ,"\n" )
+
+```
+
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(NB_model)
+```
+
+Nous regardons quelle covariable influnce le plus le modèle.
+```{r,echo=FALSE, warning = FALSE, cache=TRUE,results='hide'}
+varImp(NB_model)
+```
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(varImp(NB_model) )
+```
+La variable qui influence le plus est **educ_level et weeks_worked_in_year**                                              
+
+#### **Apply model to the test set**
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+predict_NB <- predict(NB_model, validation_data,type = "raw")
+```
+
+
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+postResample(predict_NB, validation_data$outcome)
+caret::confusionMatrix(predict_NB, validation_data$outcome)
+
+```
+Nous avons une faible taux d'erreur de validation et elle est équivalant à l'erreur d'apprentissage. 
+
+Le kappa est null donc désaccord sur la prédiction par rapport à une prédiction au hasard.
+
+La spécificité (la capacité du test à prédire une admission quand celle-ci a réellement eu lieu) est à 0. Le modèle  a prédit 0 valeurs outcome +50000.
+
+#### **Confusion Table**
+```{r, eval=TRUE,warning = FALSE,cache = TRUE}
+confusionnb <- table(predict_NB, validation_data$outcome)
+nb.acc <-(confusionnb[1,1] + confusionnb[2,2])/sum(confusionnb)
+nb.recall<-confusionnb[1,1]/(confusionnb[1,1]+confusionnb[2,1])
+nb.precision<- confusionnb[1,1]/(confusionnb[1,1]+confusionnb[1,2]) 
+
+
+resultats.nb1 <- data.frame( 'Durée'=c(end_timenb - start_timenb),Accuracy=c(nb.acc),'Taux Erreur' = c(1-nb.acc), Recall=c(nb.recall), Precision=c(nb.precision), row.names=c("Naives bayes"))
+
+
+
+kable(confusionnb, booktabs= T, caption = "Confusion Table Naives bayes  ") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Il n'y a aucune prédiction correcte pour le outcome +50000.
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionnb[2,2]
+confusionnb[1,1]
+confusionnb[2,1]
+confusionnb[1,2]
+
+``` 
+
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionnb[1,1]+confusionnb[1,2]` données outcome "- 50 000" , `r confusionnb[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionnb[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionnb[2,1]+confusionnb[2,2]` données outcome "+ 50 000" , `r confusionnb[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionnb[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionnb[1,1]+confusionnb[2,1]` outcome estimés par le système comme "- 50 000", `r confusionnb[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionnb[1,2]+confusionnb[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionnb[2,2]` sont en fait des outcome "- 50 000".
+
+#### Resultat de la prédiction
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+
+
+kable(resultats.nb1,booktabs= T,caption = "Resultats Naives bayes  ")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+
+Il est rapide et très performant mais il ne prédit pas les outcome +50000 ce qui est un gros désavantage.
+
+
+
+### 4.2.5 Support vector machine linéaire
+
+
+Nous allons utiliser un modèle SVM de type linéaire.
+
+
+Support Vector Machines with Linear Kernel
+
+  method = 'svmLinear'
+
+Type: Regression, Classification
+
+Tuning parameters:
+
+    - C (Cost)
+
+Required packages: kernlab
+
+#### **Fine-Tuning Hyperparameters avec repeated Cros Validation et Grid Search**
+
+Nous utilisons le paramètre number=2.
+
+
+```{r ,cache=TRUE,eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+start_timesvm = Sys.time()
+set.seed(123)
+Grid <- expand.grid(cost = seq(0.2,1.4,0.2))
+                    
+fitControl <- trainControl(method = 'cv', number = 2,search = "grid")
+
+
+fit.svmlinear <- caret::train(outcome ~., data=balanced_small_train_data, preProcess = c('center', 'scale'), method = 'svmLinear2', trControl=fitControl, maximize=FALSE,tuneGrid=Grid)
+
+end_timesvm = Sys.time()
+end_timesvm - start_timesvm
+
+
+```
+
+
+```{r ,cache=TRUE,eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+fit.svmlinear
+```
+L'erreur est faible et le kappa est élevé avec un accord fort
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour cost est :" , fit.svmlinear$bestTune$cost  ,"\n")
+
+
+```
+Nous regardons quelle covariable infleunce le plus le modèle.
+```{r ,cache=TRUE,eval=TRUE,echo=FALSE, warning = FALSE, results='hide'}
+varImp(fit.svmlinear)
+```
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(varImp(fit.svmlinear)  )
+
+```
+La variable qui influence le plus est **educ_level et weeks_worked_in_year**
+
+
+
+
+
+
+
+#### **Apply the tree to test set**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+
+predict_svm <- predict(fit.svmlinear, validation_data)
+
+```
+Voici le resultat de la validation :
+```{r, eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+
+postResample(predict_svm, validation_data$outcome)
+caret::confusionMatrix(predict_svm, validation_data$outcome)
+```
+L'erreur est faible et le kappa est faible avec un accord faible sur la prédiction
+
+
+#### **Confusion Table**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+confusionsvm<-table(predict_svm, validation_data$outcome)
+svm.acc <-(confusionsvm[1,1] + confusionsvm[2,2])/sum(confusionsvm)
+svm.recall<-confusionsvm[1,1]/(confusionsvm[1,1]+confusionsvm[2,1])
+svm.precision<- confusionsvm[1,1]/(confusionsvm[1,1]+confusionsvm[1,2]) 
+
+
+resultats.svm <- data.frame( 'Durée'=c(end_timesvm - start_timesvm),Accuracy=c(svm.acc),'Taux Erreur' = c(1-svm.acc), Recall=c(svm.recall), Precision=c(svm.precision), row.names=c(" Support vector machine linéaire"))
+
+kable(confusionsvm, booktabs= T, caption = "Confusion Table SVM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionsvm[2,2]
+confusionsvm[1,1]
+confusionsvm[2,1]
+confusionsvm[1,2]
+
+``` 
+
+
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionsvm[1,1]+confusionsvm[1,2]` données outcome "- 50 000" , `r confusionsvm[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionsvm[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionsvm[2,1]+confusionsvm[2,2]` données outcome "+ 50 000" , `r confusionsvm[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionsvm[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionsvm[1,1]+confusionsvm[2,1]` outcome estimés par le système comme "- 50 000", `r confusionsvm[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionsvm[1,2]+confusionsvm[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionsvm[2,2]` sont en fait des outcome "- 50 000".
+
+#### **Resultat de la prédiction**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+
+kable(resultats.svm,booktabs= T,caption = "Resultats SVM Linear")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Le temps d'execution est long et la prédiction est bonne
+
+
+### 4.2.6 Support vector machine à noyau
+
+Nous allons utilisé SVM de type Radial Basis Function Kernel
+
+  method = 'svmRadialSigma'
+
+Type: Regression, Classification
+
+Tuning parameters:
+
+    - sigma (Sigma)
+    - C (Cost)
+
+Required packages: kernlab
+
+Nous utilisons le paramètre number=2. 
+
+
+#### **Fine-Tuning avec recherche des Hyperparameters avec Cross Validation et Grid Search**
+
+Nous utilisons number = 2 car le temps d'execution est trop long. 
+
+
+```{r ,eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+start_timesvmr = Sys.time()
+set.seed(123)
+Grid <- expand.grid(sigma = c(.01, .015, 0.2), C = c(0.75,  1,  1.25))
+                    
+fitControl <-trainControl(method = 'cv', number = 2,search = "grid")
+
+
+fit.svmRadial <- caret::train(outcome ~., data=balanced_small_train_data, preProcess = c('center', 'scale'), method = 'svmRadialSigma', trControl=fitControl, maximize=FALSE,tuneGrid=Grid)
+
+end_timesvmr = Sys.time()
+end_timesvmr-start_timesvmr
+```
+
+
+Voici le resultat de l'apprentissage :
+```{r ,echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+fit.svmRadial
+```
+L'erreur d'apprentissage est faible et le kappa est élevé avec un accord élevé de prédiction
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour sigma  est :" , fit.svmRadial$bestTune$sigma ,"\n")
+cat("Best parameter pour C est :" , fit.svmRadial$bestTune$C,"\n")
+
+```
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(fit.svmRadial)
+```
+
+Nous regardons quelle covariable influnce le plus le modèle.
+```{r ,cache=TRUE,eval=TRUE,results='hide' ,cache=TRUE}
+varImp(fit.svmRadial)
+```
+
+
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, ,fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(varImp(fit.svmRadial)  )
+
+```
+Nous avons **educ_level, weeks_worked_in_year**,**num_persons_worked_for_employer** qui influencent beaucoup le modèle.
+
+
+
+
+#### **Apply model to the test set**
+
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+
+predict_svmr <- predict(fit.svmRadial, newdata = validation_data)
+
+
+```
+
+
+```{r, echo=FALSE, warning = FALSE,cache = TRUE}
+
+postResample(predict_svmr, validation_data$outcome)
+caret::confusionMatrix(predict_svmr, validation_data$outcome)
+
+```
+Nous avons une grande erreur de validation et il est pls grand que l' erreur d'apprentissage. Nous avons un problème de sur apprentissage. Le kappa est faible avec un accord faible de prédiction
+
+
+#### **Confusion Table**
+
+```{r, eval=TRUE, cache=TRUE}
+confusionsvmr<-table(predict_svmr, validation_data$outcome)
+svm.acc1 <-(confusionsvmr[1,1] + confusionsvmr[2,2])/sum(confusionsvmr)
+svm.recall1<-confusionsvmr[1,1]/(confusionsvmr[1,1]+confusionsvmr[2,1])
+svm.precision1<- confusionsvmr[1,1]/(confusionsvmr[1,1]+confusionsvmr[1,2]) 
+
+
+resultats.svmr1 <- data.frame( 'Durée'=c(end_timesvmr - start_timesvmr),Accuracy=c(svm.acc1),'Taux Erreur' = c(1-svm.acc1), Recall=c(svm.recall1), Precision=c(svm.precision1), row.names=c(" Support vector machine Radial"))
+
+
+kable(confusionsvmr, booktabs= T, caption = "Confusion Table SVM radial") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionsvmr[2,2]
+confusionsvmr[1,1]
+confusionsvmr[2,1]
+confusionsvmr[1,2]
+
+``` 
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionsvmr[1,1]+confusionsvmr[1,2]` données outcome "- 50 000" , `r confusionsvmr[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionsvmr[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionsvmr[2,1]+confusionsvmr[2,2]` données outcome "+ 50 000" , `r confusionsvmr[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionsvmr[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionsvmr[1,1]+confusionsvmr[2,1]` outcome estimés par le système comme "- 50 000", `r confusionsvmr[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionsvmr[1,2]+confusionsvmr[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionsvmr[2,2]` sont en fait des outcome "- 50 000".
+
+
+
+
+#### Resultat de la prédiction
+```{r, eval=TRUE, cache=TRUE}
+
+kable(resultats.svmr1,booktabs= T,caption = "Resultats SVM Radial")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Le temps d'execution est très long par rapport aux autres modèles et pour un résultat de la prédiction faible.
+
+
+
+### 4.2.7 K Plus proche voisins KNN
+
+Le k Nearest Neighbors (KNN) est un algorithme qui peut servir autant pour la classification que la régression. L'algorithme Le plus proches voisins consiste à choisir les k données les plus proches du point étudié afin d’en prédire sa valeur.
+
+k-Nearest Neighbors
+
+  method = 'knn'
+
+Type: Classification, Regression
+
+Tuning parameters:
+
+    - k (#Neighbors)
+
+Nous utilisons le paramètre number=10 et pas de répétitions car le temps d'execution est trop long. 
+
+#### **Fine-Tuning recherche des Hyperparameters avec Cross-Validation et Grid search**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+set.seed(100)
+start_timeknn = Sys.time()
+ctrl <- trainControl(method="cv",number = 10,search = "grid")
+k<-data.frame(k = seq(1,13,3))
+
+
+model_knn <- caret::train(outcome~ ., data = balanced_small_train_data, method = "knn",trControl = ctrl, tuneGrid = k)
+
+
+end_timeknn = Sys.time()
+end_timeknn - start_timeknn
+```
+
+Voici le resultat de l'apprentissage :
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+model_knn
+```
+Nous avons une faible erreur d'apprentissage. Le kappa est élevé avec un accord élevé de prédiction
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour k est :" , model_knn$bestTune$k,"\n")
+
+```
+
+Nous regardons quelle covariable influnce le plus le modèle.
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE, fig.align = 'center', fig.height = 3.5, fig.width = 4.5}
+plot(model_knn)
+```
+
+
+```{r, eval=TRUE,echo=FALSE,results='hide', warning = FALSE, cache=TRUE}
+varImp(model_knn)
+```
+
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE, fig.align = 'center', fig.height = 3.5, fig.width = 5.5}
+plot(varImp(model_knn))
+```
+Nous avons **educ_level, num_persons_worked_for_employer**, **detailed_industry_recode,weeks_worked_in_year** qui influencent beaucoup le modèle.
+
+
+#### **Apply the tree to test set**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE,cache = TRUE}
+predict_knn <- predict(model_knn, validation_data, type='raw')
+```
+
+
+Voici le resultat de la validation:
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+postResample(predict_knn, validation_data$outcome)
+caret::confusionMatrix(predict_knn, validation_data$outcome)
+```
+Nous avons une erreur de validation plus élevé que l'erreur d'apprentissage. Le kappa est faible avec un accord faible de prédiction.
+
+#### **Confusion Table**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+confusionknn1<-table(predict_knn, validation_data$outcome)
+knn.acc1 <-(confusionknn1[1,1] + confusionknn1[2,2])/sum(confusionknn1)
+knn.recall1<-confusionknn1[1,1]/(confusionknn1[1,1]+confusionknn1[2,1])
+knn.precision1<- confusionknn1[1,1]/(confusionknn1[1,1]+confusionknn1[1,2]) 
+resultats.knn <- data.frame( 'Durée'=c(end_timeknn - start_timeknn),Accuracy=c(knn.acc1),'Taux Erreur' = c(1-knn.acc1), Recall=c(knn.recall1), Precision=c(knn.precision1), row.names=c(" K nearest neighbors KNN"))
+
+
+kable(confusionknn1, booktabs= T, caption = "Confusion Table KNN") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionknn1[2,2]
+confusionknn1[1,1]
+confusionknn1[2,1]
+confusionknn1[1,2]
+
+``` 
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionknn1[1,1]+confusionknn1[1,2]` données outcome "- 50 000" , `r confusionknn1[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionknn1[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionknn1[2,1]+confusionknn1[2,2]` données outcome "+ 50 000" , `r confusionknn1[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionknn1[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionknn1[1,1]+confusionknn1[2,1]` outcome estimés par le système comme "- 50 000", `r confusionknn1[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionknn1[1,2]+confusionknn1[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionknn1[2,2]` sont en fait des outcome "- 50 000".
+
+#### **Resultat de la prédiction**
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+
+kable(resultats.knn,booktabs= T,caption = "Resultats KNN")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Nous avons trouver une stratégie pour avoir une valeur optimale pour le paramètre k. Le niveau de prediction est bon avec un temps d'exécution correcte.
+
+### 4.2.8 Neural Networks
+
+Les réseaux neuronaux sont l'un des modèles d'apprentissage machine les plus fascinants car leur structure est inspirée par le cerveau.
+
+Neural Network
+
+  method = 'nnet'
+
+Type: Classification, Regression
+
+Tuning parameters:
+
+   - size (#Hidden Units)
+   
+   - decay (Weight Decay)
+
+Required packages: nnet
+
+A model-specific variable importance metric is available.
+
+#### **Fine-Tuning recherche des Hyperparameters avec Cross validation et grid search**
+
+```{r,echo=FALSE,eval=TRUE, warning=FALSE, message=FALSE,results='hide',cache = TRUE}
+start_timenet = Sys.time()
+set.seed(400)
+ctrl <- trainControl(method="cv",number = 2, search = "grid")
+
+my.grid <- expand.grid(size = c(2,3,4), decay = c(0.2,0.5,0.8,1))
+
+model.nn1 <- caret::train(outcome~.,
+                  data = small_train_data,
+                  method = "nnet",tuneGrid = my.grid,trControl = ctrl)
+
+end_timenet = Sys.time()
+end_timenet - start_timenet
+```
+
+
+Voici le resultat de l'apprentissage :
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+model.nn1
+```
+Nous avons une faible erreur d'apprentissage. Le kappa est modéré avec un accord modéré de prédiction
+
+Voici les paramètres choisis :
+```{r , echo=FALSE,cache=TRUE,eval=TRUE, cache=TRUE}
+cat("Best parameter pour size est :" , model.nn1$bestTune$size,"\n")
+cat("Best parameter pour decay  est :" , model.nn1$bestTune$decay,"\n")
+
+```
+
+
+
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE, fig.align = 'center', fig.height = 2.5, fig.width = 4.5}
+plot(model.nn1)
+```
+
+Nous regardons quelle covariable influnce le plus le modèle.
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+varImp(model.nn1)
+```
+
+
+```{r, eval=FALSE,echo=FALSE, warning = FALSE, cache=TRUE, fig.align = 'center', fig.height = 3.5, fig.width = 5.5}
+plot(varImp(model.nn1))
+```
+Nous avons **detailed_occupation_recode7, detailed_occupation_recode11 et educ_levelHS-grad** qui influencent beaucoup le modèle.
+
+
+Le graphe **plotnet** du réseau de neurones:
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE, fig.align = 'center', fig.height = 6, fig.width = 8}
+plotnet(model.nn1,x_names = NULL, y_names = "outcome",pad_x = 0.8,pad_y = 1, alpha = 0.6,)
+```
+
+
+#### **Apply the tree to test set**
+
+```{r,echo=FALSE, warning = FALSE,cache = TRUE}
+
+predictions1 <- predict(model.nn1, validation_data,type = 'raw')
+```
+
+
+Voici le resultat de la validation:
+```{r,echo=FALSE, warning = FALSE, cache=TRUE}
+postResample(predictions1, validation_data$outcome)
+caret::confusionMatrix(predictions1, validation_data$outcome)
+
+```
+Nous avons une faible erreur de validation et elle est équivalant à l'erreur d'apprentissage. 
+
+Le kappa est modéré avec un accord modéré de prédiction.
+
+
+#### **Confusion Table**
+
+```{r, eval=TRUE,,echo=FALSE, warning = FALSE}
+confusionnet<-table(predictions1, validation_data$outcome)
+nnet.acc <-(confusionnet[1,1] + confusionnet[2,2])/sum(confusionnet)
+nnet.recall<-confusionnet[1,1]/(confusionnet[1,1]+confusionnet[2,1])
+nnet.precision<- confusionnet[1,1]/(confusionnet[1,1]+confusionnet[1,2]) 
+resultats.nnet <- data.frame( 'Durée Execution'=c(end_timenet - start_timenet),Accuracy=c(nnet.acc),'Taux Erreur' = c(1-nnet.acc), Recall=c(nnet.recall), Precision=c(nnet.precision), row.names=c(" Neural Networks"))
+
+
+kable(confusionnet, booktabs= T, caption = "Confusion Table NNET") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+
+```{r,echo=FALSE, eval=TRUE,warning = FALSE,cache = TRUE,results='hide'}
+confusionnet[2,2]
+confusionnet[1,1]
+confusionnet[2,1]
+confusionnet[1,2]
+
+``` 
+
+La matrice de confusion suivante se lit alors comme suit :
+
+- horizontalement, sur les `r confusionnet[1,1]+confusionnet[1,2]` données outcome "- 50 000" , `r confusionnet[1,1]`  ont été estimés par le système de classification comme "-50 000" et `r confusionnet[1,2]` ont été estimés comme "+ 50 000" (faux-négatifs),
+
+- horizontalement, sur les `r confusionnet[2,1]+confusionnet[2,2]` données outcome "+ 50 000" , `r confusionnet[2,1]` ont été estimés comme "-50 000" (faux-positifs) et `r confusionnet[2,2]` ont été estimés comme "+ 50 000"
+
+    
+- verticalement, sur les `r confusionnet[1,1]+confusionnet[2,1]` outcome estimés par le système comme "- 50 000", `r confusionnet[2,1]` sont en fait des outcome "+ 50 000",
+
+- verticalement, sur les `r confusionnet[1,2]+confusionnet[2,2]` outcome estimés par le système comme "+ 50 000", `r confusionnet[2,2]` sont en fait des outcome "- 50 000".
+
+#### **Resultat de la prédiction**
+
+```{r, eval=TRUE,echo=FALSE, warning = FALSE, cache=TRUE}
+
+kable(resultats.nnet,booktabs= T,caption = "Resultats Neuronal Network")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Nous avons une très bonne accuracy pour la prédiction mais le temps d'excution est très long.
+
+
+# Conclusion
+
+Nous avons construit plusieurs modèles de classification pour prédire si un citoyen américain gagne plus ou moins de 50 000 $ par an. Nous avons utilisé le Stochastic Gradient Boosting ,la forêt aléatoire utilisant le bagging, les machines à vecteurs de support linéaire et à noyau, les arbres de décisions, les naives Bayes, kNN et Reseau de neurones. Dans le tableau ci-dessous, nous résumons l'accuracy, le taux d'erreur, le recall, la precision et le temps d'execution pour tous les modèles . 
+
+Le modèle le plus précis est le modèle **Stochastic Gradient Boosting**. En revanche, le modèle de **Naives Bayes** a la meilleure durée d'exécution avec seulement 5 min pour la modélisation avec les covariables mais il ne prédit pas les outcome "+50000". Concernant le modèle **SVM radial**, il a un problème de sur-apprentissage d'où le faible score accuracy.
+
+En termes de temps de calcul et précision, le meilleur modèle est **l'arbre de décision CART**.
+
+En conclusion, après avoir pris en compte tous les indicateurs de performance, le modèle de l'arbre de décision semblent être le choix le plus approprié pour prédire la valeur outcome du dataset Census. 
+
+```{r, echo = FALSE,eval=TRUE, cache=TRUE}
+
+
+accuracy <- cbind(gbm.acc, tree.acc,rf.acc,nb.acc, svm.acc,svm.acc1,knn.acc1,nnet.acc)#glm.acc
+```
+
+
+```{r, echo = FALSE,eval=TRUE, cache=TRUE}
+barplot(accuracy, main="Résultats Acuracy",xlab="Modèles",ylab="Accuracy de 0 à 100% de prédiction",ylim=c(0,1),names = c("GBM", "TREE", "RF",  "NB","SVML","SVMR","KNN","NNET"),col = "cyan")
+```
+
+
+```{r, echo = FALSE,eval=TRUE, cache=TRUE}
+#,glm.acc,end_timeglm1 - start_timeglm1,glm.precision,glm.recall,"Logistic Regression",1-glm.acc
+all.res<-data.frame( Accuracy=c(gbm.acc, tree.acc,rf.acc,nb.acc, svm.acc,svm.acc1,knn.acc1,nnet.acc),'Taux Erreur' = c(1-gbm.acc,1-tree.acc,1-rf.acc,1-nb.acc,1-svm.acc,1-svm.acc1,1-knn.acc1,1-nnet.acc), 'Durée Execution'=c(end_timegbm4 - start_timegbm4,end_timetree - start_timetree,end_timerf - start_timerf,end_timenb - start_timenb,end_timesvm - start_timesvm,end_timesvmr - start_timesvmr,end_timeknn - start_timeknn,end_timenet - start_timenet),Recall=c(gbm.recall,tree.recall,rf.recall,nb.recall,svm.recall,svm.recall1,knn.recall1,nnet.recall), Precision=c(gbm.precision,tree.precision,rf.precision,nb.precision,svm.precision,svm.precision1,knn.precision1,nnet.precision), row.names=c("Stochastic Gradient Boosting","Classification Tree CART","Random Forest","Naives Bayes","SVM linéaire", "SVM radial","K nearest neighbors KNN","Neural Networks"))
+
+
+```
+
+```{r, echo = FALSE,eval=TRUE, cache=TRUE}
+kable(all.res,booktabs= T,caption = "Resultats des 8 Algorithmes")  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+
+
+```{r, echo = FALSE,eval=FALSE}
+end_time1 = Sys.time()
+end_time1 - start_time1
+```
+
+
+# Annexes
+
+```{r,echo=FALSE,eval=TRUE, warning = FALSE, cache=TRUE,fig.align = 'center', fig.height = 5.5, fig.width = 5.5}
+levels_factors(Census)
+summary(res.pca)
+
+```
